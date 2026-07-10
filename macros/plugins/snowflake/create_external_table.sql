@@ -25,7 +25,14 @@
     {%- if columns or partitions or infer_schema -%}
     (
         {%- if partitions -%}{%- for partition in partitions %}
-            {{partition.name}} {{partition.data_type}} as {{partition.expression}}{{- ',' if not loop.last or columns|length > 0 or infer_schema -}}
+            {%- set part_expression -%}
+                {%- if partition.expression -%}
+                    {{partition.expression}}
+                {%- elif 'expression' in partition.meta -%}
+                    {{partition.meta.expression}}
+                {%- endif -%}
+            {%- endset %}
+            {{partition.name}} {{partition.data_type}} as {{part_expression}}{{- ',' if not loop.last or columns|length > 0 or infer_schema -}}
         {%- endfor -%}{%- endif -%}
         {%- if not infer_schema -%}
             {%- for column in columns %}
@@ -35,6 +42,10 @@
                         {{adapter.quote(column.alias)}}
                     {%- elif 'alias' in column -%}
                         {{column.alias}}
+                    {%- elif 'alias' in column.meta and column.quote -%}
+                        {{adapter.quote(column.meta.alias)}}
+                    {%- elif 'alias' in column.meta -%}
+                        {{column.meta.alias}}
                     {%- else -%}
                         {{column_quoted}}
                     {%- endif -%}
@@ -42,6 +53,8 @@
                 {%- set col_expression -%}
                     {%- if column.expression -%}
                         {{column.expression}}
+                    {%- elif 'expression' in column.meta -%}
+                        {{column.meta.expression}}
                     {%- else -%}
                         {%- if ignore_case -%}
                         {%- set col_id = 'value:c' ~ loop.index if is_csv else 'GET_IGNORE_CASE($1, ' ~ "'"~ column_quoted ~"'"~ ')' -%}
